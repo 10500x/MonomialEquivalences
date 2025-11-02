@@ -5,14 +5,6 @@ from sympy.polys.fields import xfield
 from sympy import symbols
 from sympy.polys.domains import GF as SympyGF
 
-#Definimos afuera, pues las necesitamos multiples veces luego de generadas, para muchas funciones.
-GF=[]
-PMI2=[]
-GL2=[]
-PGL=[]
-IMS=[]
-matord=[]
-
 ################### 1 
 ################### 1 
 ################### 1 
@@ -54,6 +46,32 @@ def generar_GL2(GF):
             GL2.append(M)
     return GL2
 
+def generar_PGL2(GL2, GF):
+    """
+    Genera representantes únicos de las clases de equivalencia de PGL(2,q),
+    identificando matrices que difieren por un escalar no nulo.
+    """
+    PGL = []
+    vistos = []
+
+    for M in GL2:
+        # Buscamos el primer elemento no nulo
+        for val in M.flatten():
+            if val != GF(0):
+                escalar = val
+                break
+        else:
+            continue  # (no debería pasar, GL2 solo tiene matrices invertibles)
+
+        # Normalizamos
+        M_norm = M / escalar
+
+        # Evitamos duplicados (matrices equivalentes)
+        if not any(np.all(M_norm == N) for N in vistos):
+            vistos.append(M_norm)
+            PGL.append(M)
+
+    return PGL
 ################# Esto se usa solo para IMS
 def aplica_transformacion(M, z, GF):
     """
@@ -71,7 +89,7 @@ def aplica_transformacion(M, z, GF):
         return None  # mapea a infinito
     return ( ( (a * z) + GF(b) ) / denom)
 
-def fija_lugar_racional(GF):
+def fija_lugar_racional(GF,IMS):
     """
     Verifica si M fija algún lugar racional (alfa o infinito).
     Retorna True si existe alfa tal que M(alfa)=alfa o M(inf)=inf.
@@ -88,13 +106,12 @@ def fija_lugar_racional(GF):
         return False
 ################# Esto se usa solo para IMS 
 
-def generar_IMS(GF):
+def generar_IMS(GF,GL2):
     """Para cada matriz en GL2, nos fijamos si fija lugar racional, si no, lo metemos en GL2_Fq"""
     IMS=[]
     for matriz in GL2:
-       if not(fija_lugar_racional(GF)):
+       if not(fija_lugar_racional(GF,IMS)):
            IMS.append(matriz)
-    
     return IMS
 ########################### FIN 2
 ########################### FIN 2
@@ -105,24 +122,34 @@ def generar_IMS(GF):
 
                 
                 
-##################### 
+##################### Fin 3
 
 
 ################### 5
 
-def orden_matriz(q):
-    """para cada matriz en PGL2, nos fijamos si esa matriz ala n se puede es cribir como k*I,
-    si se puede, guardamos el n, el orden.
-    """   
-    for matriz in PGL: #por algun motivo (matriz^n)[0][0] se usa esto como escalar, lo es
-        n = 1          # pero me es raro. No se si hay una razon verdadera o si es solo para ciclar.
-        brk = 0
-        while brk == 0 :
-            if matriz^n == (matriz^n)[0][0]*galois.GF(q).Identity(2): #
+def orden_matriz(PGL, q):
+    """
+    Calcula el orden de cada matriz en PGL(2,q).
+    """
+    GF = galois.GF(q)
+    matord = []
+    for matriz in PGL:
+        n = 1
+        while True:
+            M_n = np.linalg.matrix_power(matriz.astype(object), n)# Elevamos matriz^n
+            I = np.array([[GF(1), GF(0)], [GF(0), GF(1)]], dtype=object) #identidad del cuerpo
+            escalar = M_n[0,0] # Escalar candidato
+            if np.array_equal(M_n, escalar * I):# Comparamos en el cuerpo
                 matord.append(n)
-                brk = 1
+                break
             else:
-                n = n+1
+                n += 1
+                if n > q+1:
+                    break
+
+    return matord
+
+
         
 
 ############# FIN 5
@@ -197,10 +224,10 @@ def agrupar_codigos_equivalentes(codigos):
             grupos.append([C])
     return grupos
 
-def long_sigma(q):
+def long_sigma(q,matord):
     N = []
     for n in set(matord):
-        if ( n < q + 1 ) and ( n > 3 ) and (n.divides(q+1)) :
+        if (n < q + 1) and (n > 3) and ((q + 1) % n == 0):
             N.append(n)
     print(31*'-')
     return N
