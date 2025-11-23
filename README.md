@@ -8,7 +8,8 @@ en caso del .ipynb hay que utilizar los notebooks de jupyter para correrlos. Par
 ```
 sage -n jupyter
 ```
-O bien abir el sagemath con el acceso directo. De ahí, elegir el archivo, elegir el kernel de sagemath y correrlo.
+O bien abir el sagemath con el acceso directo. 
+En el entorno del jupyter, haga click en Equivalencia_monomial_no_primo_Original.ipynb, elija el kernel de Sagemath y ya puede correrlo.
 En caso del .py, se lo puede llamar directamente desde la terminal.
 ```
 sage equivalenciaNoPrimoNuevoFinal.py
