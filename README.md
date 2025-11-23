@@ -1,4 +1,10 @@
-Para correr los códigos hay que tener instalado el sagemath. en caso de los .ipynb hay que utilizar los notebooks de jupyter para correrlos. Para ello, debe dirigirse a la terminal y escribir
+# Instalación
+Para correr los códigos hay que tener instalado el sagemath. Para instalarlo, dirijase a
+```
+https://www.sagemath.org
+```
+# Uso
+en caso del .ipynb hay que utilizar los notebooks de jupyter para correrlos. Para ello, debe dirigirse a la terminal y escribir
 ```
 sage -n jupyter
 ```
