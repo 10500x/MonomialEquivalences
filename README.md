@@ -5,5 +5,5 @@ sage -n jupyter
 O bien abir el sagemath con el acceso directo. De ahí, elegir el archivo, elegir el kernel de sagemath y correrlo.
 En caso del .py, se lo puede llamar directamente desde la terminal.
 ```
-sage pararelizacion_8.py
+sage equivalenciaNoPrimoNuevoFinal.py
 ```
