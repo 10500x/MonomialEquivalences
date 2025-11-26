@@ -8,7 +8,7 @@ from itertools import product
 # ==============================================================================
 # Lista de potencias de primos (q) a analizar.
 # El código iterará sobre cada uno de estos valores para encontrar códigos sigma-cíclicos.
-muestra = [9]
+muestra = [7,9,11]
 
 # ==============================================================================
 # 1. EL WORKER (PROCESO PARALELO)
@@ -32,7 +32,6 @@ def worker_analizar_matriz(B_list, n, q, monicirred2_coeffs, elem_coeffs, menose
     
     # Obtenemos los Lugares Finitos del cuerpo de funciones.
     # Son los puntos sobre los cuales evaluaremos las funciones para generar el código.
-    # Usamos la función nativa para asegurar el orden canónico de Sage.
     places_finite = K.places_finite()
     
     # Reconstruimos las listas de elementos y polinomios a partir de los coeficientes recibidos.
@@ -48,7 +47,6 @@ def worker_analizar_matriz(B_list, n, q, monicirred2_coeffs, elem_coeffs, menose
 
     # --- DEFINICIÓN DEL AUTOMORFISMO SIGMA ---
     try:
-        # Sigma es una Transformación de Möbius sobre el cuerpo de funciones.
         # sigma(x) = (ax + b) / (cx + d)
         sigma = K.hom([(B[0,0]*x + B[0,1]) / (B[1,0]*x + B[1,1])])
     except: return []
@@ -72,7 +70,6 @@ def worker_analizar_matriz(B_list, n, q, monicirred2_coeffs, elem_coeffs, menose
     # Buscamos conjuntos de puntos {P1, ..., Pn} que formen un ciclo bajo sigma.
     orbitas = []
     for i in range(q):
-        # Lógica de búsqueda de semilla:
         # Buscamos un punto inicial basado en la lista 'menoselem' para replicar
         # la lógica de permutación del algoritmo original.
         j = -1 #Asignamos un valor que no está en val o en enumerate(elem).
@@ -90,7 +87,6 @@ def worker_analizar_matriz(B_list, n, q, monicirred2_coeffs, elem_coeffs, menose
         if not ya_esta:         #Si no es cierto que ya está en alguna orbita,
             orbita = [P_start]  #es decir no está en ninguna orbita, construimos la orbita del punto.
             
-            # Semilla de iteración:
             # Usamos potencias a^i para generar diversidad de puntos de inicio.
             if i == 0: val_aux = k(1) 
             else: val_aux = a**i
@@ -123,7 +119,7 @@ def worker_analizar_matriz(B_list, n, q, monicirred2_coeffs, elem_coeffs, menose
     # --- CONSTRUCCIÓN DE CÓDIGOS ---
     matrices_halladas = []
     for Q in lg2fijos:
-        # Construimos el espacio de funciones L(G) usando Riemann-Roch.
+        # Construimos el espacio de funciones L(G) Riemann-Roch.
         # El divisor G está asociado al lugar fijo Q.
         I = O.ideal(Q)
         Base = I.divisor_of_zeros().basis_function_space()
@@ -196,18 +192,26 @@ def run_dynamic_program(q):
             else: elem.append(a**i)      
     menoselem = [-e for e in elem]       # Generamos la lista de menos los elementos, usada más adelante para el isomorfismo sigma.
     
-    ### Esto lo hizo la ia, dios sabrá si está bien, pero los resultados son suficientemente concluyentes para asegurar que lo está.
-    # Serialización: Convertimos a listas de coeficientes simples
-    # Esto evita errores de 'Pickling' al pasar objetos complejos a procesos paralelos.
-    elem_coeffs = [e.polynomial().list() for e in elem]          
-    menoselem_coeffs = [e.polynomial().list() for e in menoselem]
+   # Distinguimos entre Primos y Extensiones
+    if is_prime(q):
+        # Si es primo (7, 11...), enviamos enteros puros (int)
+        elem_coeffs = [int(e) for e in elem]
+        menoselem_coeffs = [int(e) for e in menoselem]
+    else:
+        # Si es extensión (9, 25...), enviamos listas de coeficientes
+        elem_coeffs = [e.polynomial().list() for e in elem]          
+        menoselem_coeffs = [e.polynomial().list() for e in menoselem]
+    # -----------------------
     
-    # Generación de Polinomios Irreducibles Mónicos de Grado 2
-    R = PolynomialRing(k, 'x')    #Construimos el anillo de polinomios asociado al cuerpo, con variable 'x'.  
-    monicirred2 = [p for p in R.polynomials(2) if p.is_irreducible() and p.is_monic()] #conjunto de los polinomios mónicos irreducibles de grado 2.
-    monicirred2_coeffs = [p.list() for p in monicirred2]                               #guardamos los coeficientes, por lo mismo que arriba.
-    print(f'Hay {len(monicirred2)} polinomios mónicos irreducibles de grado 2')  
-    ###
+    R = PolynomialRing(k, 'x')                                   
+    monicirred2 = [p for p in R.polynomials(2) if p.is_irreducible() and p.is_monic()] 
+    
+    # Si el cuerpo base es primo, devuelve enteros.
+    if is_prime(q):
+        # Convertimos los coeficientes del polinomio a enteros simples
+        monicirred2_coeffs = [[int(c) for c in p.list()] for p in monicirred2]
+    else:
+        monicirred2_coeffs = [p.list() for p in monicirred2]
     
     # --- CLASIFICACIÓN DE MATRICES ---
     # Buscamos las longitudes 'n' válidas para códigos sigma-cíclicos.
@@ -293,12 +297,11 @@ def run_dynamic_program(q):
         for r in reps_perm: print(r); print('')
         print(f"Tiempo Permutación: {time.time() - t_perm_start:.2f} s")
         
-        # 4. FILTRADO MONOMIAL (VIA NORMALIZACIÓN)
-        # Verificamos si las clases colapsan al permitir escalado de columnas.
+        # 4. FILTRADO MONOMIAL
         print('Filtrando por equivalencia monomial...')
-        t_mono_start = time.time()
+        t_mono_start = time.time() #Inicializamos el tiempo de este proceso.
         
-        lista_reducida = [] # Paso 1: Tomar cada matriz que pasó el filtro de permutaciones
+        lista_reducida = [] # Paso A: Tomar cada matriz que pasó el filtro de permutaciones
         for G in reps_perm:    # y reducirlas a traves de la funcion obtener_reducción()
             G_norm = obtener_reduccion(G)   #Llamamos a la matriz reducida G_norm y la metemos en la lista 
             lista_reducida.append(G_norm)
